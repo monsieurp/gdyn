@@ -58,7 +58,7 @@ func TestLogFileRoutingAndAppend(t *testing.T) {
 	}
 	for _, line := range lines {
 		checkTimestamp(t, line)
-		if !strings.Contains(line, "level=ERROR") || !strings.Contains(line, "configuration failed") {
+		if !strings.Contains(line, " ERROR gdyn  ") || !strings.Contains(line, "configuration failed") {
 			t.Errorf("unexpected log entry: %s", line)
 		}
 	}
@@ -75,11 +75,10 @@ func TestTerminalLogsHaveTimestamps(t *testing.T) {
 
 func checkTimestamp(t *testing.T, line string) {
 	t.Helper()
-	fields := strings.Fields(line)
-	if len(fields) == 0 || !strings.HasPrefix(fields[0], "time=") {
+	if len(line) < 19 {
 		t.Fatalf("missing timestamp: %q", line)
 	}
-	if _, err := time.Parse(time.RFC3339, strings.TrimPrefix(fields[0], "time=")); err != nil {
+	if _, err := time.Parse("2006-01-02 15:04:05", line[:19]); err != nil {
 		t.Fatalf("invalid timestamp: %v", err)
 	}
 }

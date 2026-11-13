@@ -234,9 +234,10 @@ It does not manage IPv6, PTR records or zone snapshots.
 Logs use timestamped plain text with one event per line:
 
 ```text
-time=2026-11-13T14:05:00+01:00 level=INFO msg="record unchanged" domain=example.com record=@ ip=1.1.1.1
+2026-11-13 14:05:00 INFO  gdyn  record unchanged domain=example.com record=@ ip=1.1.1.1
 ```
 
+Each line contains local date and time, a padded log level, `gdyn`, the message and any fields.
 By default, logs go to the terminal through standard error.
 With `--log`, logs append only to the specified file:
 
@@ -286,6 +287,7 @@ All Go files belong to one package under `cmd/gdyn`:
 | File | Responsibility |
 | --- | --- |
 | `main.go` | CLI flags, log destination and exit status |
+| `log.go` | Log layout, levels and structured fields |
 | `config.go` | TOML defaults, validation and file writes |
 | `resolver.go` | Public IPv4 discovery and HTTP timeouts |
 | `gandi.go` | Gandi API requests and responses |

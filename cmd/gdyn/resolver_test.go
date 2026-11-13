@@ -173,7 +173,7 @@ func TestResolverFallback(t *testing.T) {
 			if !reflect.DeepEqual(calls, tc.wantCalls) {
 				t.Errorf("requests: got %v; want %v", calls, tc.wantCalls)
 			}
-			if strings.Contains(logs.String(), "level=WARN") != (len(tc.wantCalls) == 2) {
+			if strings.Contains(logs.String(), " WARN  gdyn  ") != (len(tc.wantCalls) == 2) {
 				t.Errorf("unexpected fallback warning: %s", &logs)
 			}
 		})

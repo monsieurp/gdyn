@@ -6,12 +6,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
-	"time"
 )
 
 // Set version at build time with -ldflags="-X main.version=v1".
@@ -113,22 +111,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
-}
-
-func newLogger(writer io.Writer, verbose bool) *slog.Logger {
-	level := slog.LevelInfo
-	if verbose {
-		level = slog.LevelDebug
-	}
-	return slog.New(slog.NewTextHandler(writer, &slog.HandlerOptions{
-		Level: level,
-		ReplaceAttr: func(groups []string, attr slog.Attr) slog.Attr {
-			if attr.Key == slog.TimeKey {
-				return slog.String(slog.TimeKey, attr.Value.Time().Format(time.RFC3339))
-			}
-			return attr
-		},
-	}))
 }
 
 func sameFile(first, second string) bool {
