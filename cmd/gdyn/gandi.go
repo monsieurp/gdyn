@@ -19,7 +19,7 @@ type recordSet struct {
 }
 
 type gandiClient struct {
-	http    *http.Client
+	http    *retryClient
 	baseURL string
 	token   string
 }
@@ -53,7 +53,7 @@ func (client *gandiClient) request(ctx context.Context, method, path string, pay
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	response, err := client.http.Do(req)
+	response, err := client.http.do(req, 8<<20)
 	if err != nil {
 		return fmt.Errorf("Gandi request: %w", err)
 	}

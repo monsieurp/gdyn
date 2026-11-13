@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -19,8 +20,9 @@ func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) 
 }
 
 // Exercise HTTP request handling without external services or listening sockets.
-func handlerClient(handler http.HandlerFunc) *http.Client {
+func handlerClient(handler http.HandlerFunc) *retryClient {
 	client := newHTTPClient(false)
+	client.wait = skipRetryWait
 	client.Transport = roundTripFunc(func(request *http.Request) (*http.Response, error) {
 		if err := request.Context().Err(); err != nil {
 			return nil, err
@@ -30,6 +32,10 @@ func handlerClient(handler http.HandlerFunc) *http.Client {
 		return recorder.Result(), nil
 	})
 	return client
+}
+
+func skipRetryWait(ctx context.Context, _ time.Duration) error {
+	return ctx.Err()
 }
 
 func TestResolveIP(t *testing.T) {
@@ -74,9 +80,9 @@ func TestResolveIP(t *testing.T) {
 
 func TestResolveIPTransportFailure(t *testing.T) {
 	for _, cause := range []error{context.DeadlineExceeded, context.Canceled, errors.New("connection failed")} {
-		client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		client := &retryClient{Client: &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
 			return nil, cause
-		})}
+		})}, wait: skipRetryWait}
 		if _, err := resolveIP(context.Background(), client, "https://resolver.example.com"); !errors.Is(err, cause) {
 			t.Fatalf("got %v; want wrapped %v", err, cause)
 		}
@@ -111,7 +117,7 @@ func TestResolverFallback(t *testing.T) {
 		},
 		{
 			name: "HTTP error uses fallback", primaryStatus: 503, fallbackStatus: 200, fallbackBody: "8.8.8.8",
-			wantIP: "8.8.8.8", wantCalls: []string{"primary.example.com", "fallback.example.com"},
+			wantIP: "8.8.8.8", wantCalls: []string{"primary.example.com", "primary.example.com", "primary.example.com", "fallback.example.com"},
 		},
 		{
 			name: "invalid IP uses fallback", primaryStatus: 200, primaryBody: "999.999.999.999", fallbackStatus: 200, fallbackBody: "8.8.8.8",
@@ -119,7 +125,7 @@ func TestResolverFallback(t *testing.T) {
 		},
 		{
 			name: "timeout uses fallback", primaryError: context.DeadlineExceeded, fallbackStatus: 200, fallbackBody: "8.8.8.8",
-			wantIP: "8.8.8.8", wantCalls: []string{"primary.example.com", "fallback.example.com"},
+			wantIP: "8.8.8.8", wantCalls: []string{"primary.example.com", "primary.example.com", "primary.example.com", "fallback.example.com"},
 		},
 		{
 			name: "connection error uses fallback", primaryError: errors.New("connection failed"), fallbackStatus: 200, fallbackBody: "8.8.8.8",
@@ -127,15 +133,15 @@ func TestResolverFallback(t *testing.T) {
 		},
 		{
 			name: "disabled fallback", primaryStatus: 503, disabled: true,
-			wantCalls: []string{"primary.example.com"}, wantError: "primary resolver failed",
+			wantCalls: []string{"primary.example.com", "primary.example.com", "primary.example.com"}, wantError: "primary resolver failed",
 		},
 		{
 			name: "both services fail", primaryStatus: 503, fallbackStatus: 502,
-			wantCalls: []string{"primary.example.com", "fallback.example.com"}, wantError: "fallback resolver failed",
+			wantCalls: []string{"primary.example.com", "primary.example.com", "primary.example.com", "fallback.example.com", "fallback.example.com", "fallback.example.com"}, wantError: "fallback resolver failed",
 		},
 		{
 			name: "fallback IP must also be valid", primaryStatus: 503, fallbackStatus: 200, fallbackBody: "192.168.1.1",
-			wantCalls: []string{"primary.example.com", "fallback.example.com"}, wantError: "fallback resolver failed",
+			wantCalls: []string{"primary.example.com", "primary.example.com", "primary.example.com", "fallback.example.com"}, wantError: "fallback resolver failed",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -173,7 +179,8 @@ func TestResolverFallback(t *testing.T) {
 			if !reflect.DeepEqual(calls, tc.wantCalls) {
 				t.Errorf("requests: got %v; want %v", calls, tc.wantCalls)
 			}
-			if strings.Contains(logs.String(), " WARN  gdyn  ") != (len(tc.wantCalls) == 2) {
+			usedFallback := tc.wantCalls[len(tc.wantCalls)-1] == "fallback.example.com"
+			if strings.Contains(logs.String(), " WARN  gdyn  ") != usedFallback {
 				t.Errorf("unexpected fallback warning: %s", &logs)
 			}
 		})
@@ -184,11 +191,11 @@ func TestResolverCancellationSkipsFallback(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	calls := 0
-	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+	client := &retryClient{Client: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		calls++
 		cancel()
 		return nil, r.Context().Err()
-	})}
+	})}, wait: skipRetryWait}
 	var logs bytes.Buffer
 	_, err := resolvePublicIP(ctx, client, "https://primary.example.com/ip", "https://fallback.example.com/ip", newLogger(&logs, false))
 	if !errors.Is(err, context.Canceled) || calls != 1 || logs.Len() != 0 {

@@ -69,7 +69,7 @@ func TestUpdateRecords(t *testing.T) {
 		},
 		{
 			name: "continue after partial failure", failRecord: "@",
-			wantWrites: []string{"@", "www"}, wantError: true, wantLog: "record update failed",
+			wantWrites: []string{"@", "@", "@", "www"}, wantError: true, wantLog: "record update failed",
 		},
 		{
 			name: "failed fetch prevents writes", fetchError: true, wantError: true,

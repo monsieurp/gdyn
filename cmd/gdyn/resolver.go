@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func newHTTPClient(ipv4 bool) *http.Client {
+func newHTTPClient(ipv4 bool) *retryClient {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	if ipv4 {
 		dialer := &net.Dialer{Timeout: 10 * time.Second}
@@ -21,16 +21,16 @@ func newHTTPClient(ipv4 bool) *http.Client {
 			return dialer.DialContext(ctx, "tcp4", address)
 		}
 	}
-	return &http.Client{
+	return &retryClient{Client: &http.Client{
 		Transport: transport,
 		Timeout:   20 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return fmt.Errorf("HTTP redirects are not supported; configure the final URL")
 		},
-	}
+	}, wait: waitForRetry}
 }
 
-func resolvePublicIP(ctx context.Context, client *http.Client, primaryURL, fallbackURL string, logger *slog.Logger) (netip.Addr, error) {
+func resolvePublicIP(ctx context.Context, client *retryClient, primaryURL, fallbackURL string, logger *slog.Logger) (netip.Addr, error) {
 	ip, err := resolveIP(ctx, client, primaryURL)
 	if err == nil {
 		return ip, nil
@@ -47,13 +47,13 @@ func resolvePublicIP(ctx context.Context, client *http.Client, primaryURL, fallb
 	return ip, nil
 }
 
-func resolveIP(ctx context.Context, client *http.Client, resolverURL string) (netip.Addr, error) {
+func resolveIP(ctx context.Context, client *retryClient, resolverURL string) (netip.Addr, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, resolverURL, nil)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("create IP resolver request: %w", err)
 	}
 	req.Header.Set("Accept", "text/plain")
-	response, err := client.Do(req)
+	response, err := client.do(req, 4096)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("discover public IP: %w", err)
 	}

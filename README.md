@@ -145,14 +145,14 @@ TTL must be between `300` and `2592000` seconds.
 
 All URLs must use HTTPS without embedded credentials or a fragment.
 The API URL must also exclude a query string.
-Requests do not follow redirects. Each request has a 20-second timeout.
+Requests do not follow redirects. Each attempt has a 20-second timeout.
 
 The resolver must return one public IPv4 address as plain text.
 Surrounding whitespace is acceptable. HTML, JSON and IPv6 responses are not acceptable.
 
 ### Resolver fallback
 
-If the primary resolver fails, the program tries the fallback resolver once.
+If the primary resolver exhausts its attempts or returns an invalid address, the program tries the fallback resolver.
 Errors include timeouts, connection errors, HTTP errors and invalid addresses.
 The program logs a warning before it uses the fallback.
 It does not contact the fallback after a successful primary response or a canceled run.
@@ -162,7 +162,22 @@ Set `fallback_resolver_url = ""` to disable fallback.
 To use another service, enter its HTTPS resolver URL in the file or form.
 Both resolvers must return the same plain-text format.
 If both fail, the program exits with status `1` without DNS changes.
-Each request retains its own 20-second timeout.
+Each resolver uses the retry policy described below.
+
+### Bounded retries
+
+Resolver requests and Gandi API requests allow up to three attempts in total.
+The program retries connection errors, timeouts, interrupted response reads, HTTP `429` and HTTP `5xx` responses.
+The normal waits are one second before attempt two and two seconds before attempt three.
+
+A valid `Retry-After` header replaces the normal wait. The header can contain seconds or an HTTP date.
+If the server requests more than ten seconds, the program stops that request without another attempt.
+It does not retry earlier than the server requests.
+An invalid header uses the normal wait.
+
+Authentication errors, permission errors, invalid resolver addresses and invalid JSON do not trigger retries.
+Cancellation stops the request or wait and prevents further attempts.
+Each repeated DNS update sends the same address and TTL.
 
 ## Run
 
@@ -218,7 +233,7 @@ The program leaves other record names and record types unchanged.
 A CNAME at a configured name prevents an `A` update at that name.
 
 If an individual update fails, the program reports the error and continues with the remaining names.
-Successful updates remain in place. The program does not retry requests or restore earlier records.
+Successful updates remain in place. The program does not restore earlier records after an error.
 
 | Exit status | Meaning |
 | --- | --- |
@@ -290,6 +305,7 @@ All Go files belong to one package under `cmd/gdyn`:
 | `log.go` | Log layout, levels and structured fields |
 | `config.go` | TOML defaults, validation and file writes |
 | `resolver.go` | Public IPv4 discovery and HTTP timeouts |
+| `retry.go` | Bounded HTTP retries and cancellable waits |
 | `gandi.go` | Gandi API requests and responses |
 | `update.go` | Record comparisons and updates |
 | `ui.go` | Configuration form and themes |

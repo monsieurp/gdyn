@@ -62,10 +62,11 @@ func TestGandiErrors(t *testing.T) {
 	for _, tc := range []struct {
 		name, body, want string
 		status           int
+		wantCalls        int
 	}{
-		{"authentication", `{"message":"expired test-token"}`, "Gandi HTTP 403: expired [redacted]", 403},
-		{"plain error", "upstream unavailable", "Gandi HTTP 502: Bad Gateway", 502},
-		{"invalid JSON", "not JSON", "decode Gandi response", 200},
+		{"authentication", `{"message":"expired test-token"}`, "Gandi HTTP 403: expired [redacted]", 403, 1},
+		{"plain error", "upstream unavailable", "Gandi HTTP 502: Bad Gateway", 502, 3},
+		{"invalid JSON", "not JSON", "decode Gandi response", 200, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			calls := 0
@@ -76,8 +77,8 @@ func TestGandiErrors(t *testing.T) {
 				_, _ = io.WriteString(w, tc.body)
 			})
 			_, err := client.records(context.Background(), "example.com")
-			if err == nil || !strings.Contains(err.Error(), tc.want) || strings.Contains(err.Error(), "test-token") || calls != 1 {
-				t.Fatalf("got %v after %d requests; want %q without token or retry", err, calls, tc.want)
+			if err == nil || !strings.Contains(err.Error(), tc.want) || strings.Contains(err.Error(), "test-token") || calls != tc.wantCalls {
+				t.Fatalf("got %v after %d requests; want %q without token after %d requests", err, calls, tc.want, tc.wantCalls)
 			}
 		})
 	}
