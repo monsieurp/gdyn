@@ -2,7 +2,9 @@ GO ?= go
 CGO_ENABLED ?= 0
 VERSION ?=
 
-.PHONY: build test clean
+.PHONY: all build test clean
+
+all: clean build test
 
 build:
 	@version='$(VERSION)'; \
