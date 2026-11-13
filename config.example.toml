@@ -1,0 +1,11 @@
+[gandi]
+url = "https://api.gandi.net/v5/livedns/"
+token = "your-personal-access-token"
+
+[dns]
+domain = "example.com"
+records = ["@"]
+ttl = 3600
+
+[ip]
+resolver_url = "https://me.gandi.net"
