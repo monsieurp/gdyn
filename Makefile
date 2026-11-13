@@ -11,7 +11,7 @@ build:
 	if [ -z "$$version" ]; then \
 		version=$$(git describe --tags --dirty 2>/dev/null || printf '%s' dev); \
 	fi; \
-	CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-X main.version=$$version" -o gdyn ./cmd/gdyn
+	CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-s -w -X main.version=$$version" -o gdyn ./cmd/gdyn
 
 test:
 	CGO_ENABLED=$(CGO_ENABLED) $(GO) test ./...
