@@ -29,6 +29,25 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if cfg.Gandi.URL != "https://api.gandi.net/v5/livedns/" || cfg.DNS.TTL != 3600 || cfg.IP.ResolverURL != "https://me.gandi.net" || !reflect.DeepEqual(cfg.DNS.Records, []string{"@"}) {
 		t.Fatalf("unexpected defaults: %+v", cfg)
 	}
+	if cfg.IP.FallbackResolverURL != "https://api.ipify.org" {
+		t.Fatal("unexpected default fallback resolver")
+	}
+}
+
+func TestFallbackCanBeDisabled(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	cfg := testConfig()
+	cfg.IP.FallbackResolverURL = ""
+	if err := saveConfig(path, cfg); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := loadConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.IP.FallbackResolverURL != "" {
+		t.Fatal("load restored the default after fallback was explicitly disabled")
+	}
 }
 
 func TestLoadConfigErrors(t *testing.T) {
@@ -77,6 +96,9 @@ func TestConfigValidation(t *testing.T) {
 		{"high TTL", func(c *config) { c.DNS.TTL = 2592001 }, "dns.ttl"},
 		{"HTTP resolver", func(c *config) { c.IP.ResolverURL = "http://resolver.example.com" }, "ip.resolver_url"},
 		{"resolver credentials", func(c *config) { c.IP.ResolverURL = "https://user:pass@resolver.example.com" }, "ip.resolver_url"},
+		{"HTTP fallback", func(c *config) { c.IP.FallbackResolverURL = "http://fallback.example.com" }, "ip.fallback_resolver_url"},
+		{"fallback credentials", func(c *config) { c.IP.FallbackResolverURL = "https://user:pass@fallback.example.com" }, "ip.fallback_resolver_url"},
+		{"fallback fragment", func(c *config) { c.IP.FallbackResolverURL = "https://fallback.example.com/#fragment" }, "ip.fallback_resolver_url"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := testConfig()
@@ -92,11 +114,15 @@ func TestConfigValidation(t *testing.T) {
 		cfg.DNS.Domain = " Example.COM. "
 		cfg.DNS.Records = []string{" @ ", " WWW ", "*.home"}
 		cfg.DNS.TTL = ttl
+		cfg.IP.FallbackResolverURL = " https://fallback.example.com/ip "
 		if err := cfg.validate(); err != nil {
 			t.Fatal(err)
 		}
 		if cfg.DNS.Domain != "example.com" || cfg.Gandi.URL != "https://api.example.com/livedns/" || !reflect.DeepEqual(cfg.DNS.Records, []string{"@", "www", "*.home"}) {
 			t.Fatalf("normalization failed: %+v", cfg)
+		}
+		if cfg.IP.FallbackResolverURL != "https://fallback.example.com/ip" {
+			t.Fatal("fallback URL was not trimmed")
 		}
 	}
 }
@@ -109,6 +135,7 @@ func TestSaveConfigRoundTrip(t *testing.T) {
 	want := testConfig()
 	want.Gandi.URL = "https://custom.example.com/api/"
 	want.IP.ResolverURL = "https://resolver.example.com/ip"
+	want.IP.FallbackResolverURL = "https://fallback.example.com/ip"
 	if err := saveConfig(path, want); err != nil {
 		t.Fatal(err)
 	}

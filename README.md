@@ -89,6 +89,7 @@ The centered form contains these fields, in order:
 4. TTL (seconds)
 5. API URL
 6. IP resolver
+7. Fallback resolver (optional)
 
 | Key | Action |
 | --- | --- |
@@ -117,6 +118,7 @@ ttl = 3600
 
 [ip]
 resolver_url = "https://me.gandi.net"
+fallback_resolver_url = "https://api.ipify.org"
 ```
 
 | Key | Meaning | Default |
@@ -127,6 +129,7 @@ resolver_url = "https://me.gandi.net"
 | `dns.records` | Record names relative to the zone | `["@"]` |
 | `dns.ttl` | DNS cache lifetime in seconds | `3600` |
 | `ip.resolver_url` | Service that returns the public IPv4 address | `https://me.gandi.net` |
+| `ip.fallback_resolver_url` | Second resolver to try after a primary error | `https://api.ipify.org` |
 
 `@` means the domain itself. For `example.com`, the name `www` means `www.example.com`.
 To update both names, use `records = ["@", "www"]`.
@@ -140,12 +143,26 @@ International domain names must use punycode.
 The program rejects unknown TOML keys, empty record lists and duplicate record names.
 TTL must be between `300` and `2592000` seconds.
 
-Both URLs must use HTTPS without embedded credentials or a fragment.
+All URLs must use HTTPS without embedded credentials or a fragment.
 The API URL must also exclude a query string.
 Requests do not follow redirects. Each request has a 20-second timeout.
 
 The resolver must return one public IPv4 address as plain text.
 Surrounding whitespace is acceptable. HTML, JSON and IPv6 responses are not acceptable.
+
+### Resolver fallback
+
+If the primary resolver fails, the program tries the fallback resolver once.
+Errors include timeouts, connection errors, HTTP errors and invalid addresses.
+The program logs a warning before it uses the fallback.
+It does not contact the fallback after a successful primary response or a canceled run.
+
+The default fallback is `https://api.ipify.org`.
+Set `fallback_resolver_url = ""` to disable fallback.
+To use another service, enter its HTTPS resolver URL in the file or form.
+Both resolvers must return the same plain-text format.
+If both fail, the program exits with status `1` without DNS changes.
+Each request retains its own 20-second timeout.
 
 ## Run
 

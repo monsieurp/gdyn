@@ -23,7 +23,8 @@ type config struct {
 		TTL     int      `toml:"ttl"`
 	} `toml:"dns"`
 	IP struct {
-		ResolverURL string `toml:"resolver_url"`
+		ResolverURL         string `toml:"resolver_url"`
+		FallbackResolverURL string `toml:"fallback_resolver_url"`
 	} `toml:"ip"`
 }
 
@@ -33,6 +34,7 @@ func defaultConfig() config {
 	cfg.DNS.Records = []string{"@"}
 	cfg.DNS.TTL = 3600
 	cfg.IP.ResolverURL = "https://me.gandi.net"
+	cfg.IP.FallbackResolverURL = "https://api.ipify.org"
 	return cfg
 }
 
@@ -86,9 +88,20 @@ func (cfg *config) validate() error {
 		return fmt.Errorf("dns.ttl must be between 300 and 2592000 seconds")
 	}
 	cfg.IP.ResolverURL = strings.TrimSpace(cfg.IP.ResolverURL)
-	u, err := url.Parse(cfg.IP.ResolverURL)
+	if err := validateResolverURL("ip.resolver_url", cfg.IP.ResolverURL); err != nil {
+		return err
+	}
+	cfg.IP.FallbackResolverURL = strings.TrimSpace(cfg.IP.FallbackResolverURL)
+	if cfg.IP.FallbackResolverURL != "" {
+		return validateResolverURL("ip.fallback_resolver_url", cfg.IP.FallbackResolverURL)
+	}
+	return nil
+}
+
+func validateResolverURL(key, value string) error {
+	u, err := url.Parse(value)
 	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Fragment != "" || u.Opaque != "" {
-		return fmt.Errorf("ip.resolver_url must be an HTTPS URL without credentials or a fragment")
+		return fmt.Errorf("%s must be an HTTPS URL without credentials or a fragment", key)
 	}
 	return nil
 }

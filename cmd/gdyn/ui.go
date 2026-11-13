@@ -37,6 +37,7 @@ func configureUI(path string) error {
 	form.AddInputField("TTL (seconds)", strconv.Itoa(cfg.DNS.TTL), 40, nil, nil)
 	form.AddInputField("API URL", cfg.Gandi.URL, 40, nil, nil)
 	form.AddInputField("IP resolver", cfg.IP.ResolverURL, 40, nil, nil)
+	form.AddInputField("Fallback resolver", cfg.IP.FallbackResolverURL, 40, nil, nil)
 	showError := func(message string) {
 		modal = tview.NewModal().SetText(tview.Escape(message)).AddButtons([]string{"OK"})
 		themes[themeIndex].styleModal(modal)
@@ -60,6 +61,7 @@ func configureUI(path string) error {
 		cfg.DNS.TTL = ttl
 		cfg.Gandi.URL = form.GetFormItem(4).(*tview.InputField).GetText()
 		cfg.IP.ResolverURL = form.GetFormItem(5).(*tview.InputField).GetText()
+		cfg.IP.FallbackResolverURL = form.GetFormItem(6).(*tview.InputField).GetText()
 		if err := saveConfig(path, cfg); err != nil {
 			showError(err.Error())
 			return
@@ -105,7 +107,7 @@ func configureUI(path string) error {
 	})
 	app.SetBeforeDrawFunc(func(screen tcell.Screen) bool {
 		width, height := screen.Size()
-		cardWidth, cardHeight := min(72, width), min(19, height)
+		cardWidth, cardHeight := min(72, width), min(21, height)
 		layout.SetRect((width-cardWidth)/2, (height-cardHeight)/2, cardWidth, cardHeight)
 		return false
 	})

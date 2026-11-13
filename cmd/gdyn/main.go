@@ -99,7 +99,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	resolver := newHTTPClient(true)
 	defer resolver.CloseIdleConnections()
 	logger.Debug("discovering public IPv4 address")
-	ip, err := resolveIP(ctx, resolver, cfg.IP.ResolverURL)
+	ip, err := resolvePublicIP(ctx, resolver, cfg.IP.ResolverURL, cfg.IP.FallbackResolverURL, logger)
 	if err != nil {
 		logger.Error("IP discovery failed", "error", err)
 		return 1

@@ -9,3 +9,4 @@ ttl = 3600
 
 [ip]
 resolver_url = "https://me.gandi.net"
+fallback_resolver_url = "https://api.ipify.org"

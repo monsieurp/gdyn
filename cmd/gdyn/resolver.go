@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/netip"
@@ -26,6 +28,23 @@ func newHTTPClient(ipv4 bool) *http.Client {
 			return fmt.Errorf("HTTP redirects are not supported; configure the final URL")
 		},
 	}
+}
+
+func resolvePublicIP(ctx context.Context, client *http.Client, primaryURL, fallbackURL string, logger *slog.Logger) (netip.Addr, error) {
+	ip, err := resolveIP(ctx, client, primaryURL)
+	if err == nil {
+		return ip, nil
+	}
+	primaryErr := fmt.Errorf("primary resolver failed: %w", err)
+	if fallbackURL == "" || ctx.Err() != nil {
+		return netip.Addr{}, primaryErr
+	}
+	logger.Warn("primary resolver failed; trying fallback", "error", err)
+	ip, err = resolveIP(ctx, client, fallbackURL)
+	if err != nil {
+		return netip.Addr{}, errors.Join(primaryErr, fmt.Errorf("fallback resolver failed: %w", err))
+	}
+	return ip, nil
 }
 
 func resolveIP(ctx context.Context, client *http.Client, resolverURL string) (netip.Addr, error) {
