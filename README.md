@@ -24,6 +24,26 @@ go build -o gdyn ./cmd/gdyn
 
 The binary includes its Go dependencies. It does not need a separate Go installation to run.
 
+### Makefile
+
+```sh
+make build
+make test
+make clean
+```
+
+`make build` embeds the output of `git describe --tags --dirty` as the version.
+Without Git version information, it uses `dev`.
+Tracked changes add a `-dirty` suffix. `make clean` removes the binary.
+
+The Makefile disables cgo by default, including on FreeBSD.
+You can override the version, Go command or cgo setting:
+
+```sh
+make build VERSION=v1
+make build GO=go126 CGO_ENABLED=1
+```
+
 ### Release version
 
 A normal build reports `gdyn dev`.
