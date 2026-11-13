@@ -92,6 +92,16 @@ func run(args []string, stdout, stderr io.Writer) int {
 		logger.Error("configuration failed", "error", err)
 		return 1
 	}
+	lock, err := acquireConfigLock(*configPath)
+	if errors.Is(err, errRunActive) {
+		logger.Info("run already active", "config", *configPath)
+		return 0
+	}
+	if err != nil {
+		logger.Error("configuration lock failed", "error", err)
+		return 1
+	}
+	defer lock.Close()
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	resolver := newHTTPClient(true)

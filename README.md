@@ -237,8 +237,8 @@ Successful updates remain in place. The program does not restore earlier records
 
 | Exit status | Meaning |
 | --- | --- |
-| `0` | Success, successful dry-run, help or version output |
-| `1` | Configuration, resolver, API or record update error |
+| `0` | Success, successful dry-run, skipped active run, help or version output |
+| `1` | Configuration, lock, resolver, API or record update error |
 | `2` | Invalid command-line flags or arguments |
 
 The program supports one domain and IPv4 `A` records per configuration file.
@@ -282,8 +282,23 @@ Add a run every five minutes:
 ```
 
 Use absolute paths because cron can use a different working directory.
-Choose an interval longer than the expected run duration to avoid overlapping runs.
-The program does not prevent concurrent runs.
+
+### Overlapping runs
+
+Each update run acquires an exclusive OS lock before IP discovery and holds it until the run exits.
+Dry-runs use the same lock.
+If another run holds the lock, the program logs `run already active` and exits with status `0`.
+Separate configurations can run independently on the same machine.
+
+The lock file sits beside the configuration file. For `config.toml`, its name is `config.toml.lock`.
+Relative paths and symbolic links to the same configuration use the same lock.
+The configuration directory must permit writes. New lock files use permissions `0600`.
+If the program cannot acquire the lock for another reason, it exits with status `1` without DNS changes.
+
+The OS releases the lock after a normal exit or a crash.
+The file remains in place. Its existence does not mean that a run is active.
+Do not remove the lock file during a run. Removal can let another process acquire a different lock.
+The configuration form does not acquire this lock.
 
 ## Tests and source
 
@@ -303,6 +318,7 @@ All Go files belong to one package under `cmd/gdyn`:
 | --- | --- |
 | `main.go` | CLI flags, log destination and exit status |
 | `log.go` | Log layout, levels and structured fields |
+| `lock.go` | Exclusive OS lock for each configuration |
 | `config.go` | TOML defaults, validation and file writes |
 | `resolver.go` | Public IPv4 discovery and HTTP timeouts |
 | `retry.go` | Bounded HTTP retries and cancellable waits |
