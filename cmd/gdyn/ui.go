@@ -31,7 +31,7 @@ func configureUI(path string) error {
 	}
 	themeIndex := 0
 	var modal *tview.Modal
-	form.AddPasswordField("Gandi token", cfg.Gandi.Token, 40, '*', nil)
+	form.AddPasswordField("Gandi PAT", cfg.Gandi.Token, 40, '*', nil)
 	form.AddInputField("Domain", cfg.DNS.Domain, 40, nil, nil)
 	form.AddInputField("Records", strings.Join(cfg.DNS.Records, ", "), 40, nil, nil)
 	form.AddInputField("TTL (seconds)", strconv.Itoa(cfg.DNS.TTL), 40, nil, nil)
