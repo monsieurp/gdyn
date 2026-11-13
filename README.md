@@ -24,6 +24,20 @@ go build -o gdyn ./cmd/gdyn
 
 The binary includes its Go dependencies. It does not need a separate Go installation to run.
 
+### Release version
+
+A normal build reports `gdyn dev`.
+For a release build, embed the release tag:
+
+```sh
+go build -ldflags="-X main.version=v1" -o gdyn ./cmd/gdyn
+./gdyn --version
+# gdyn v1
+```
+
+Replace `v1` with the tag for that release.
+On FreeBSD, prefix the build command with `env CGO_ENABLED=0` to avoid the C linker dependency.
+
 ## Configure
 
 Open the configuration form:
@@ -148,7 +162,7 @@ gdyn configure [flags]
 | `--force` | Update every configured record even if its address and TTL match. |
 | `--verbose` | Include progress and record comparisons in the logs. |
 | `--log PATH` | Append logs only to this file. No default file. |
-| `--version` | Print the version and exit. The current value is `gdyn dev`. |
+| `--version` | Print the embedded release version and exit. Default: `gdyn dev`. |
 | `--help` | Print help and exit. |
 
 `gdyn configure` accepts only `--config` and `--help`.

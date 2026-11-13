@@ -14,6 +14,9 @@ import (
 	"time"
 )
 
+// Set version at build time with -ldflags="-X main.version=v1".
+var version = "dev"
+
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
@@ -57,7 +60,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	if showVersion {
-		fmt.Fprintln(stdout, "gdyn dev")
+		fmt.Fprintln(stdout, "gdyn", version)
 		return 0
 	}
 	if configure {
